@@ -9,6 +9,7 @@ export default function Menu() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [quantities, setQuantities] = useState([]);
+  const [activeCategory, setActiveCategory] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -22,9 +23,10 @@ export default function Menu() {
         const normalized = data.map((d, idx) => ({
           id: d._id || idx,
           name: d.name || '',
-          desc: d.description || '',
+          desc: d.description || d.desc || '',
           price: Number(d.price) || 0,
-          img: d.image || ''
+          img: d.image || '',
+          category: d.category || 'بدون قسم'
         }));
         setItems(normalized);
         setQuantities(Array(normalized.length).fill(0));
@@ -63,40 +65,163 @@ export default function Menu() {
   };
 
   const totalPrice = quantities.reduce((sum, q, i) => sum + q * (items[i]?.price || 0), 0);
+  
+  // تجميع المنتجات حسب الأقسام
+  const groupedByCategory = {};
+  items.forEach(item => {
+    const cat = item.category || 'بدون قسم';
+    if (!groupedByCategory[cat]) {
+      groupedByCategory[cat] = [];
+    }
+    groupedByCategory[cat].push(item);
+  });
+
+  const categoryNames = Object.keys(groupedByCategory);
+
+  // تعيين القسم الأول كنشط عند التحميل
+  useEffect(() => {
+    if (categoryNames.length > 0 && !activeCategory) {
+      setActiveCategory(categoryNames[0]);
+    }
+  }, [categoryNames, activeCategory]);
+
+  // تحريك الزر النشط إلى منتصف الشريط
+  const scrollButtonToCenter = (categoryName) => {
+    const button = document.querySelector(`.category-nav-btn[data-category="${categoryName}"]`);
+    const container = document.querySelector('.categories-nav-content');
+    
+    if (button && container) {
+      const buttonLeft = button.offsetLeft;
+      const buttonWidth = button.offsetWidth;
+      const containerWidth = container.offsetWidth;
+      
+      const scrollPosition = buttonLeft - (containerWidth / 2) + (buttonWidth / 2);
+      
+      container.scrollTo({
+        left: scrollPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // مراقبة الأقسام لتحديد القسم النشط
+  useEffect(() => {
+    if (categoryNames.length === 0) return;
+
+    const observerOptions = {
+      root: null,
+      rootMargin: '-100px 0px -60% 0px',
+      threshold: 0
+    };
+
+    const observerCallback = (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          const categoryName = entry.target.id.replace('category-', '');
+          setActiveCategory(categoryName);
+          scrollButtonToCenter(categoryName);
+        }
+      });
+    };
+
+    const observer = new IntersectionObserver(observerCallback, observerOptions);
+
+    categoryNames.forEach((categoryName) => {
+      const element = document.getElementById(`category-${categoryName}`);
+      if (element) {
+        observer.observe(element);
+      }
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [categoryNames]);
+
+  // التنقل إلى قسم معين
+  const scrollToCategory = (categoryName) => {
+    setActiveCategory(categoryName);
+    scrollButtonToCenter(categoryName);
+    
+    const element = document.getElementById(`category-${categoryName}`);
+    if (element) {
+      const offset = 120; // مسافة من الأعلى
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - offset;
+      
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   return (
     <>
       <div className="container py-4" dir="rtl">
         <h2 className="text-center fw-bold mb-3">قائمة الطعام</h2>
-        <p className="text-center text-muted mb-4">جرّب أشهى الأطباق المقدمة خصيصاً لك</p>
+        <p className="text-center text-muted mb-2">جرّب أشهى الأطباق المقدمة خصيصاً لك</p>
 
         {loading && <p className="text-center">جارٍ التحميل...</p>}
         {!!error && <p className="text-center text-danger">{error}</p>}
 
-        {items.map((item, index) => (
-          <div className="menu-card" key={item.id}>
-            {quantities[index] > 0 && (
-              <span className="total-badge" style={{ display: 'inline-block' }}>ل.س {formatNumber(quantities[index] * item.price)}</span>
-            )}
-            <div className="menu-img">
-              <img src={item.img || 'https://via.placeholder.com/208x138?text=%20'} alt={item.name} />
+        {/* شريط الأقسام الأفقي الثابت */}
+        {!loading && categoryNames.length > 0 && (
+          <div className="categories-nav-bar">
+            <div className="categories-nav-content">
+              {categoryNames.map((categoryName, idx) => (
+                <button
+                  key={idx}
+                  data-category={categoryName}
+                  className={`category-nav-btn ${activeCategory === categoryName ? 'active' : ''}`}
+                  onClick={() => scrollToCategory(categoryName)}
+                >
+                  {categoryName}
+                </button>
+              ))}
             </div>
-            <div className="menu-info">
-              <h6 className="fw-bold mb-1 m-0">{item.name}</h6>
-              <div className="meta-row">
-                <span className="price-tag">ل.س {formatNumber(item.price)}</span>
-              </div>
+          </div>
+        )}
 
-              {quantities[index] === 0 ? (
-                <button className="btn btn-order btn-sm anim-pop" onClick={() => handleAdd(index)}>اضف+</button>
-              ) : (
-                <div className="quantity-control anim-pop" style={{ display: 'flex' }}>
-                  <button className="minus" onClick={() => handleDecrease(index)}>-</button>
-                  <span className="count">{quantities[index]}</span>
-                  <button className="plus" onClick={() => handleIncrease(index)}>+</button>
-                </div>
-              )}
+        {/* عرض المنتجات حسب الأقسام */}
+        {categoryNames.map((categoryName, catIdx) => (
+          <div key={catIdx} className="category-section" id={`category-${categoryName}`}>
+            {/* عنوان القسم الثابت */}
+            <div className="category-header-sticky">
+              <h3>{categoryName}</h3>
             </div>
+
+            {/* منتجات القسم */}
+            {groupedByCategory[categoryName].map((item) => {
+              const originalIndex = items.findIndex(i => i.id === item.id);
+              return (
+                <div className="menu-card" key={item.id}>
+                  {quantities[originalIndex] > 0 && (
+                    <span className="total-badge" style={{ display: 'inline-block' }}>ل.س {formatNumber(quantities[originalIndex] * item.price)}</span>
+                  )}
+                  <div className="menu-img">
+                    <img src={item.img || 'https://via.placeholder.com/208x138?text=%20'} alt={item.name} />
+                  </div>
+                  <div className="menu-info">
+                    <h6 className="fw-bold mb-1 m-0">{item.name}</h6>
+                    {item.desc && <p className="text-muted">{item.desc}</p>}
+                    <div className="meta-row">
+                      <span className="price-tag">ل.س {formatNumber(item.price)}</span>
+                    </div>
+
+                    {quantities[originalIndex] === 0 ? (
+                      <button className="btn btn-order btn-sm anim-pop" onClick={() => handleAdd(originalIndex)}>اضف+</button>
+                    ) : (
+                      <div className="quantity-control anim-pop" style={{ display: 'flex' }}>
+                        <button className="minus" onClick={() => handleDecrease(originalIndex)}>-</button>
+                        <span className="count">{quantities[originalIndex]}</span>
+                        <button className="plus" onClick={() => handleIncrease(originalIndex)}>+</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ))}
 

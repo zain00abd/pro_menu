@@ -7,7 +7,7 @@ import { getCollection } from '@/lib/mongodb'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { name, price, image, description } = body || {}
+    const { name, price, image, description, category } = body || {}
 
     if (!name || !price) {
       return NextResponse.json({ ok: false, error: 'name and price are required' }, { status: 400 })
@@ -18,6 +18,7 @@ export async function POST(request) {
       price: Number(price),
       image: image ? String(image).trim() : '',
       description: description ? String(description).trim() : '',
+      category: category ? String(category).trim() : 'بدون قسم',
       createdAt: new Date(),
     }
 
