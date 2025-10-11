@@ -61,20 +61,52 @@ export async function PUT(request) {
     const body = await request.json()
     const { categoryId, action, product } = body || {}
 
-    if (!categoryId || !action) {
-      return NextResponse.json({ ok: false, error: 'categoryId and action are required' }, { status: 400 })
+    if (!action) {
+      return NextResponse.json({ ok: false, error: 'action is required' }, { status: 400 })
     }
 
     const col = await getCollection('categories')
     
     switch (action) {
+      case 'reorderCategories':
+        console.log('Reordering categories:', body.categories)
+        if (!body.categories || !Array.isArray(body.categories)) {
+          return NextResponse.json({ ok: false, error: 'categories array is required' }, { status: 400 })
+        }
+        
+        // تحديث ترتيب جميع الأقسام
+        const updatePromises = body.categories.map((cat, index) => {
+          try {
+            console.log(`Updating category ${cat._id} to order ${index}`)
+            return col.updateOne(
+              { _id: new ObjectId(cat._id) },
+              { 
+                $set: { 
+                  order: index,
+                  updatedAt: new Date()
+                }
+              }
+            )
+          } catch (error) {
+            console.error(`Error updating category ${cat._id}:`, error)
+            return Promise.resolve({ matchedCount: 0, modifiedCount: 0 })
+          }
+        })
+        
+        const results = await Promise.all(updatePromises)
+        console.log('Update results:', results)
+        return NextResponse.json({ ok: true, message: 'Categories reordered successfully' })
+        
       case 'addProduct':
+        if (!categoryId) {
+          return NextResponse.json({ ok: false, error: 'categoryId is required for addProduct' }, { status: 400 })
+        }
         if (!product || !product.name || !product.price) {
           return NextResponse.json({ ok: false, error: 'Product name and price are required' }, { status: 400 })
         }
         
         const newProduct = {
-          id: Date.now().toString(), // معرف مؤقت
+          id: `product-${Math.random().toString(36).substr(2, 9)}`, // معرف مؤقت آمن
           name: String(product.name).trim(),
           price: Number(product.price),
           image: product.image ? String(product.image).trim() : '',
@@ -93,6 +125,9 @@ export async function PUT(request) {
         return NextResponse.json({ ok: true, product: newProduct })
         
       case 'updateProduct':
+        if (!categoryId) {
+          return NextResponse.json({ ok: false, error: 'categoryId is required for updateProduct' }, { status: 400 })
+        }
         if (!product || !product.id) {
           return NextResponse.json({ ok: false, error: 'Product id is required' }, { status: 400 })
         }
@@ -114,6 +149,9 @@ export async function PUT(request) {
         return NextResponse.json({ ok: true })
         
       case 'deleteProduct':
+        if (!categoryId) {
+          return NextResponse.json({ ok: false, error: 'categoryId is required for deleteProduct' }, { status: 400 })
+        }
         if (!product || !product.id) {
           return NextResponse.json({ ok: false, error: 'Product id is required' }, { status: 400 })
         }

@@ -27,11 +27,13 @@ export default function Menu() {
         
         // تحويل البيانات من النظام الجديد إلى النظام القديم للتوافق
         const allItems = [];
-        data.categories.forEach(category => {
+        // ترتيب الأقسام حسب order
+        const sortedCategories = data.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
+        sortedCategories.forEach(category => {
           if (category.products && Array.isArray(category.products)) {
             category.products.forEach(product => {
               allItems.push({
-                id: product.id || Date.now() + Math.random(),
+                id: product.id || `product-${Math.random().toString(36).substr(2, 9)}`,
                 name: product.name || '',
                 desc: product.description || '',
                 price: Number(product.price) || 0,
@@ -257,9 +259,24 @@ export default function Menu() {
 
   return (
     <>
+      {/* شريط المطعم المزخرف */}
+      <div className="restaurant-header-elegant" dir="rtl">
+        <div className="header-background-pattern"></div>
+        <div className="header-content">
+          <div className="restaurant-branding">
+            <div className="restaurant-logo-circle">
+              <div className="logo-pattern"></div>
+              <span className="logo-text">النخيل</span>
+            </div>
+            <div className="restaurant-names">
+              <h1 className="arabic-name">مطعم النخيل الذهبي</h1>
+              <p className="english-name">GOLDEN PALM RESTAURANT</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="container py-4" dir="rtl">
-        <h2 className="text-center fw-bold mb-3">قائمة الطعام</h2>
-        <p className="text-center text-muted mb-2">جرّب أشهى الأطباق المقدمة خصيصاً لك</p>
 
         {loading && <p className="text-center">جارٍ التحميل...</p>}
         {!!error && <p className="text-center text-danger">{error}</p>}
