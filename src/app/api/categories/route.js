@@ -3,35 +3,15 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 import { NextResponse } from 'next/server'
 import { getCollection } from '@/lib/mongodb'
+import { ObjectId } from 'mongodb'
 
-// GET - جلب جميع الأقسام
+// GET - جلب جميع الأقسام مع منتجاتها
 export async function GET(request) {
   try {
-    // جلب الأقسام المخزنة في categories collection
-    const categoriesCol = await getCollection('categories')
-    const savedCategories = await categoriesCol.find({}).sort({ order: 1, name: 1 }).toArray()
+    const col = await getCollection('categories')
+    const categories = await col.find({}).sort({ order: 1, name: 1 }).toArray()
     
-    // جلب الأقسام المستخدمة فعلياً في المنتجات
-    const productsCol = await getCollection('products')
-    const usedCategories = await productsCol.distinct('category')
-    
-    // دمج الأقسام وإزالة التكرار
-    const allCategoryNames = new Set()
-    
-    // إضافة الأقسام المخزنة
-    savedCategories.forEach(cat => {
-      if (cat.name) allCategoryNames.add(cat.name)
-    })
-    
-    // إضافة الأقسام المستخدمة
-    usedCategories.forEach(cat => {
-      if (cat && cat.trim()) allCategoryNames.add(cat)
-    })
-    
-    // تحويل إلى مصفوفة من الكائنات
-    const categories = Array.from(allCategoryNames)
-      .sort()
-      .map(name => ({ name }))
+    console.log('Categories with products:', categories)
     
     return NextResponse.json({ ok: true, categories })
   } catch (err) {
@@ -60,8 +40,10 @@ export async function POST(request) {
 
     const doc = {
       name: String(name).trim(),
+      products: [], // مصفوفة المنتجات
       order: body.order || 0,
       createdAt: new Date(),
+      updatedAt: new Date(),
     }
 
     const result = await col.insertOne(doc)
@@ -73,3 +55,108 @@ export async function POST(request) {
   }
 }
 
+// PUT - تحديث قسم (إضافة/تعديل/حذف منتج)
+export async function PUT(request) {
+  try {
+    const body = await request.json()
+    const { categoryId, action, product } = body || {}
+
+    if (!categoryId || !action) {
+      return NextResponse.json({ ok: false, error: 'categoryId and action are required' }, { status: 400 })
+    }
+
+    const col = await getCollection('categories')
+    
+    switch (action) {
+      case 'addProduct':
+        if (!product || !product.name || !product.price) {
+          return NextResponse.json({ ok: false, error: 'Product name and price are required' }, { status: 400 })
+        }
+        
+        const newProduct = {
+          id: Date.now().toString(), // معرف مؤقت
+          name: String(product.name).trim(),
+          price: Number(product.price),
+          image: product.image ? String(product.image).trim() : '',
+          description: product.description ? String(product.description).trim() : '',
+          createdAt: new Date(),
+        }
+        
+        await col.updateOne(
+          { _id: new ObjectId(categoryId) },
+          { 
+            $push: { products: newProduct },
+            $set: { updatedAt: new Date() }
+          }
+        )
+        
+        return NextResponse.json({ ok: true, product: newProduct })
+        
+      case 'updateProduct':
+        if (!product || !product.id) {
+          return NextResponse.json({ ok: false, error: 'Product id is required' }, { status: 400 })
+        }
+        
+        await col.updateOne(
+          { _id: new ObjectId(categoryId), 'products.id': product.id },
+          { 
+            $set: { 
+              'products.$.name': String(product.name).trim(),
+              'products.$.price': Number(product.price),
+              'products.$.image': product.image ? String(product.image).trim() : '',
+              'products.$.description': product.description ? String(product.description).trim() : '',
+              'products.$.updatedAt': new Date(),
+              updatedAt: new Date()
+            }
+          }
+        )
+        
+        return NextResponse.json({ ok: true })
+        
+      case 'deleteProduct':
+        if (!product || !product.id) {
+          return NextResponse.json({ ok: false, error: 'Product id is required' }, { status: 400 })
+        }
+        
+        await col.updateOne(
+          { _id: new ObjectId(categoryId) },
+          { 
+            $pull: { products: { id: product.id } },
+            $set: { updatedAt: new Date() }
+          }
+        )
+        
+        return NextResponse.json({ ok: true })
+        
+      default:
+        return NextResponse.json({ ok: false, error: 'Invalid action' }, { status: 400 })
+    }
+  } catch (err) {
+    console.error('Update category error', err)
+    return NextResponse.json({ ok: false, error: String(err?.message || err) }, { status: 500 })
+  }
+}
+
+// DELETE - حذف قسم كامل
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const categoryId = searchParams.get('id')
+
+    if (!categoryId) {
+      return NextResponse.json({ ok: false, error: 'Category id is required' }, { status: 400 })
+    }
+
+    const col = await getCollection('categories')
+    const result = await col.deleteOne({ _id: new ObjectId(categoryId) })
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ ok: false, error: 'Category not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('Delete category error', err)
+    return NextResponse.json({ ok: false, error: String(err?.message || err) }, { status: 500 })
+  }
+}

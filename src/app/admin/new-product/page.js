@@ -22,10 +22,14 @@ export default function NewProductPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/categories')
+      const res = await fetch('/api/categories', { cache: 'no-store' })
       const data = await res.json()
+      console.log('Fetched categories data:', data)
       if (data.ok && data.categories) {
+        console.log('Setting categories:', data.categories)
         setCategories(data.categories)
+      } else {
+        console.error('Failed to fetch categories:', data)
       }
     } catch (err) {
       console.error('خطأ في جلب الأقسام', err)
@@ -37,20 +41,34 @@ export default function NewProductPage() {
       alert('الرجاء إدخال اسم القسم')
       return
     }
+    
+    const categoryNameToAdd = newCategoryName.trim()
+    
     try {
       const res = await fetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newCategoryName }),
+        body: JSON.stringify({ name: categoryNameToAdd }),
       })
       const data = await res.json()
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed')
+      if (!res.ok || !data.ok) {
+        // إذا كان القسم موجود مسبقاً، لا بأس
+        if (res.status === 400 && data.error.includes('already exists')) {
+          // فقط اختره
+          setCategory(categoryNameToAdd)
+          setNewCategoryName('')
+          setShowNewCategory(false)
+          return
+        }
+        throw new Error(data.error || 'Request failed')
+      }
       
+      // إضافة القسم الجديد مباشرة للقائمة
+      setCategories(prev => [...prev, { name: categoryNameToAdd }].sort((a, b) => a.name.localeCompare(b, 'ar')))
+      setCategory(categoryNameToAdd)
       setMessage('تم إضافة القسم بنجاح')
       setNewCategoryName('')
       setShowNewCategory(false)
-      fetchCategories() // تحديث قائمة الأقسام
-      setCategory(newCategoryName) // تعيين القسم الجديد كقسم محدد
       setTimeout(() => setMessage(''), 3000)
     } catch (err) {
       alert('حدث خطأ: ' + err.message)
@@ -61,18 +79,47 @@ export default function NewProductPage() {
     e.preventDefault()
     setSubmitting(true)
     setMessage('')
+    
+    if (!category) {
+      alert('الرجاء اختيار قسم للمنتج')
+      setSubmitting(false)
+      return
+    }
+    
     try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
+      // البحث عن القسم المحدد
+      const selectedCategory = categories.find(cat => cat.name === category)
+      
+      if (!selectedCategory) {
+        alert('القسم المحدد غير موجود')
+        setSubmitting(false)
+        return
+      }
+      
+      const res = await fetch('/api/categories', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, price: Number(price), image, description, category }),
+        body: JSON.stringify({ 
+          categoryId: selectedCategory._id,
+          action: 'addProduct',
+          product: { 
+            name, 
+            price: Number(price), 
+            image, 
+            description 
+          }
+        }),
       })
       const data = await res.json()
       if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed')
+      
       setMessage('تم إنشاء المنتج بنجاح')
       setName(''); setPrice(''); setImage(''); setDescription(''); setCategory('')
+      
+      // تحديث قائمة الأقسام لإظهار المنتج الجديد
+      fetchCategories()
     } catch (err) {
-      setMessage('حدث خطأ أثناء الإنشاء')
+      setMessage('حدث خطأ أثناء الإنشاء: ' + err.message)
     } finally {
       setSubmitting(false)
     }

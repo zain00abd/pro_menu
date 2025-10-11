@@ -6,12 +6,14 @@ const CONNECTION_TIMEOUT = 5 * 60 * 1000 // 5 دقائق
 
 const options = {
   maxPoolSize: 10,
-  minPoolSize: 2,
-  serverSelectionTimeoutMS: 10000,
+  minPoolSize: 1,
+  serverSelectionTimeoutMS: 30000,
   socketTimeoutMS: 45000,
-  connectTimeoutMS: 10000,
+  connectTimeoutMS: 30000,
   retryWrites: true,
   retryReads: true,
+  maxIdleTimeMS: 60000,
+  waitQueueTimeoutMS: 10000,
 }
 
 function ensureClient() {
@@ -68,19 +70,32 @@ function ensureClient() {
 }
 
 export async function getDb(databaseName = 'all-data') {
-  try {
-    const connectedClient = await ensureClient()
-    return connectedClient.db(databaseName)
-  } catch (error) {
-    console.error('Error getting database:', error)
-    // إعادة المحاولة مرة واحدة
-    clientPromise = null
-    if (global._mongoClientPromise) {
-      global._mongoClientPromise = null
+  let retries = 3
+  let lastError = null
+  
+  while (retries > 0) {
+    try {
+      const connectedClient = await ensureClient()
+      return connectedClient.db(databaseName)
+    } catch (error) {
+      lastError = error
+      console.error(`Error getting database (${retries} retries left):`, error.message)
+      retries--
+      
+      // إعادة تعيين الاتصال
+      clientPromise = null
+      if (global._mongoClientPromise) {
+        global._mongoClientPromise = null
+      }
+      
+      // انتظار قصير قبل المحاولة التالية
+      if (retries > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
     }
-    const connectedClient = await ensureClient()
-    return connectedClient.db(databaseName)
   }
+  
+  throw lastError || new Error('Failed to connect to database after multiple retries')
 }
 
 export async function getCollection(collectionName, databaseName = 'all-data') {

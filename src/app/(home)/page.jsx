@@ -19,21 +19,31 @@ export default function Menu() {
     let isMounted = true;
     (async () => {
       try {
-        const res = await fetch('https://nextback-seven.vercel.app/datamenu', { cache: 'no-store' });
+        const res = await fetch('/api/categories', { cache: 'no-store' });
         if (!res.ok) throw new Error('فشل جلب البيانات');
         const data = await res.json();
-        if (!Array.isArray(data)) throw new Error('صيغة بيانات غير صحيحة');
+        if (!Array.isArray(data.categories)) throw new Error('صيغة بيانات غير صحيحة');
         if (!isMounted) return;
-        const normalized = data.map((d, idx) => ({
-          id: d._id || idx,
-          name: d.name || '',
-          desc: d.description || d.desc || '',
-          price: Number(d.price) || 0,
-          img: d.image || '',
-          category: d.category || 'بدون قسم'
-        }));
-        setItems(normalized);
-        setQuantities(Array(normalized.length).fill(0));
+        
+        // تحويل البيانات من النظام الجديد إلى النظام القديم للتوافق
+        const allItems = [];
+        data.categories.forEach(category => {
+          if (category.products && Array.isArray(category.products)) {
+            category.products.forEach(product => {
+              allItems.push({
+                id: product.id || Date.now() + Math.random(),
+                name: product.name || '',
+                desc: product.description || '',
+                price: Number(product.price) || 0,
+                img: product.image || '',
+                category: category.name || 'بدون قسم'
+              });
+            });
+          }
+        });
+        
+        setItems(allItems);
+        setQuantities(Array(allItems.length).fill(0));
       } catch (e) {
         if (isMounted) setError(e?.message || 'خطأ غير متوقع');
       } finally {
