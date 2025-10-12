@@ -1,15 +1,167 @@
 
-/* شريط المطعم المزخرف */
-.restaurant-header-elegant {
+/* عنوان المطعم المحسن والبسيط */
+.restaurant-title-improved {
   position: relative;
-  width: 100%;
-  height: 120px;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: linear-gradient(135deg, #f5e6d3 0%, #e8d5ba 50%, #f5e6d3 100%);
+  padding: 30px 0;
+  margin-bottom: 25px;
+  border-bottom: 4px solid #d4af37;
+  box-shadow: 0 2px 10px rgba(139, 115, 85, 0.2);
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* الزخارف الهندسية في الخلفية */
+.restaurant-title-improved::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    /* دوائر هندسية */
+    radial-gradient(circle at 20% 20%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 215, 0, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(218, 165, 32, 0.05) 0%, transparent 60%),
+    /* خطوط هندسية */
+    linear-gradient(45deg, transparent 30%, rgba(212, 175, 55, 0.05) 50%, transparent 70%),
+    linear-gradient(-45deg, transparent 30%, rgba(255, 162, 0, 0.081) 50%, transparent 70%),
+    /* أنماط هندسية */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23d4af37' stroke-width='0.7' opacity='0.5'%3E%3Cpath d='M10 10h40v40H10z'/%3E%3Cpath d='M20 20h20v20H20z'/%3E%3Cpath d='M30 30h0'/%3E%3C/g%3E%3C/svg%3E"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill='none' stroke='%23ffd700' stroke-width='0.3' opacity='1'%3E%3Ccircle cx='20' cy='20' r='15'/%3E%3Ccircle cx='20' cy='20' r='8'/%3E%3Ccircle cx='20' cy='20' r='3'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 200px 200px, 150px 150px, 300px 300px, 100px 100px, 80px 80px, 60px 60px, 40px 40px;
+  background-position: 0 0, 50px 50px, 100px 100px, 0 0, 40px 40px, 0 0, 20px 20px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* عناصر زخرفية إضافية */
+.restaurant-title-improved::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: 
+    /* مثلثات هندسية */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23d4af37' stroke-width='0.4' opacity='0.06'%3E%3Cpath d='M40 10L70 60L10 60Z'/%3E%3Cpath d='M40 20L60 50L20 50Z'/%3E%3C/g%3E%3C/svg%3E"),
+    /* مربعات متداخلة */
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='50' height='50' viewBox='0 0 50 50'%3E%3Cg fill='none' stroke='%23ffd700' stroke-width='0.3' opacity='0.05'%3E%3Crect x='5' y='5' width='40' height='40'/%3E%3Crect x='15' y='15' width='20' height='20'/%3E%3Crect x='20' y='20' width='10' height='10'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 80px 80px, 50px 50px;
+  background-position: 20px 20px, 60px 60px;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.title-container {
+  position: relative;
+  z-index: 10;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+  text-align: center;
+}
+
+/* زخارف هندسية جانبية */
+.title-container::before,
+.title-container::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #d4af37 50%, transparent 100%);
+  opacity: 0.6;
+}
+
+.title-container::before {
+  left: -80px;
+}
+
+.title-container::after {
+  right: -80px;
+}
+
+/* نقاط زخرفية */
+.title-container::before {
+  background-image: 
+    linear-gradient(90deg, transparent 0%, #d4af37 50%, transparent 100%),
+    radial-gradient(circle, #d4af37 2px, transparent 2px);
+  background-size: 60px 2px, 4px 4px;
+  background-position: 0 0, 30px -1px;
+}
+
+.title-container::after {
+  background-image: 
+    linear-gradient(90deg, transparent 0%, #d4af37 50%, transparent 100%),
+    radial-gradient(circle, #d4af37 2px, transparent 2px);
+  background-size: 60px 2px, 4px 4px;
+  background-position: 0 0, -30px -1px;
+}
+
+.restaurant-name {
+  margin: 0;
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: #6f5c42;
+  font-family: "Cairo", sans-serif;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  letter-spacing: 1px;
+}
+
+.restaurant-tagline {
+  margin: 12px 0 0 0;
+  font-size: 1.2rem;
+  color: #8b7355;
+  font-style: italic;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* تصميم متجاوب للعنوان المحسن */
+@media (max-width: 768px) {
+  .restaurant-title-improved {
+    padding: 25px 0;
+  }
+  
+  .restaurant-name {
+    font-size: 2.2rem;
+  }
+  
+  .restaurant-tagline {
+    font-size: 1.1rem;
+  }
+  
+  /* إخفاء الزخارف الجانبية على الشاشات الصغيرة */
+  .title-container::before,
+  .title-container::after {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .restaurant-title-improved {
+    padding: 20px 0;
+  }
+  
+  .restaurant-name {
+    font-size: 1.8rem;
+  }
+  
+  .restaurant-tagline {
+    font-size: 1rem;
+  }
+  
+  /* تقليل كثافة الزخارف على الهواتف */
+  .restaurant-title-improved::before {
+    opacity: 0.3;
+  }
+  
+  .restaurant-title-improved::after {
+    opacity: 0.2;
+  }
 }
 
 .header-background-pattern {

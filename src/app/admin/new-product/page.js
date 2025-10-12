@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import 'bootstrap/dist/css/bootstrap.min.css'
 import './style.css'
 
@@ -14,6 +15,9 @@ export default function NewProductPage() {
   const [showNewCategory, setShowNewCategory] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
+  const [imageType, setImageType] = useState('url') // 'url' or 'upload'
+  const [uploadedImage, setUploadedImage] = useState(null)
+  const [imagePreview, setImagePreview] = useState('')
 
   // جلب الأقسام عند تحميل الصفحة
   useEffect(() => {
@@ -34,6 +38,43 @@ export default function NewProductPage() {
     } catch (err) {
       console.error('خطأ في جلب الأقسام', err)
     }
+  }
+
+  // دالة التعامل مع رفع الصور
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      // التحقق من نوع الملف
+      if (!file.type.startsWith('image/')) {
+        alert('الرجاء اختيار ملف صورة صالح')
+        return
+      }
+      
+      // التحقق من حجم الملف (5MB كحد أقصى)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('حجم الصورة كبير جداً. الحد الأقصى 5MB')
+        return
+      }
+      
+      setUploadedImage(file)
+      
+      // إنشاء معاينة للصورة
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setImagePreview(e.target.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // دالة تحويل الصورة إلى base64
+  const convertImageToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
   }
 
   const addNewCategory = async () => {
@@ -96,6 +137,13 @@ export default function NewProductPage() {
         return
       }
       
+      let finalImage = image
+      
+      // إذا كان المستخدم اختار رفع صورة
+      if (imageType === 'upload' && uploadedImage) {
+        finalImage = await convertImageToBase64(uploadedImage)
+      }
+      
       const res = await fetch('/api/categories', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -105,7 +153,7 @@ export default function NewProductPage() {
           product: { 
             name, 
             price: Number(price), 
-            image, 
+            image: finalImage, 
             description 
           }
         }),
@@ -114,7 +162,14 @@ export default function NewProductPage() {
       if (!res.ok || !data.ok) throw new Error(data.error || 'Request failed')
       
       setMessage('تم إنشاء المنتج بنجاح')
-      setName(''); setPrice(''); setImage(''); setDescription(''); setCategory('')
+      // إعادة تعيين جميع الحقول
+      setName('')
+      setPrice('')
+      setImage('')
+      setDescription('')
+      setCategory('')
+      setUploadedImage(null)
+      setImagePreview('')
       
       // تحديث قائمة الأقسام لإظهار المنتج الجديد
       fetchCategories()
@@ -154,13 +209,81 @@ export default function NewProductPage() {
               />
             </div>
             <div>
-              <label className="form-label">رابط الصورة</label>
-              <input 
-                className="form-control" 
-                value={image} 
-                onChange={e=>setImage(e.target.value)}
-                placeholder="https://..."
-              />
+              <label className="form-label">الصورة</label>
+              
+              {/* أزرار التبديل بين نوعي الصورة */}
+              <div className="image-type-toggle">
+                <button 
+                  type="button"
+                  className={`toggle-btn ${imageType === 'url' ? 'active' : ''}`}
+                  onClick={() => {
+                    setImageType('url')
+                    setUploadedImage(null)
+                    setImagePreview('')
+                  }}
+                >
+                  🔗 رابط
+                </button>
+                <button 
+                  type="button"
+                  className={`toggle-btn ${imageType === 'upload' ? 'active' : ''}`}
+                  onClick={() => {
+                    setImageType('upload')
+                    setImage('')
+                  }}
+                >
+                  📁 رفع صورة
+                </button>
+              </div>
+              
+              {/* حقل رابط الصورة */}
+              {imageType === 'url' && (
+                <input 
+                  className="form-control" 
+                  value={image} 
+                  onChange={e=>setImage(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                />
+              )}
+              
+              {/* حقل رفع الصورة */}
+              {imageType === 'upload' && (
+                <div className="image-upload-section">
+                  <input 
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="file-input"
+                    id="imageUpload"
+                  />
+                  <label htmlFor="imageUpload" className="file-input-label">
+                    📁 اختر صورة من الجهاز
+                  </label>
+                  
+                  {/* معاينة الصورة */}
+                  {imagePreview && (
+                    <div className="image-preview">
+                      <Image 
+                        src={imagePreview} 
+                        alt="معاينة الصورة" 
+                        width={200}
+                        height={150}
+                        style={{ maxWidth: '200px', maxHeight: '150px', borderRadius: '8px' }}
+                      />
+                      <button 
+                        type="button"
+                        className="remove-image-btn"
+                        onClick={() => {
+                          setUploadedImage(null)
+                          setImagePreview('')
+                        }}
+                      >
+                        ❌ إزالة الصورة
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

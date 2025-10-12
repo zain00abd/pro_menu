@@ -259,20 +259,11 @@ export default function Menu() {
 
   return (
     <>
-      {/* شريط المطعم المزخرف */}
-      <div className="restaurant-header-elegant" dir="rtl">
-        <div className="header-background-pattern"></div>
-        <div className="header-content">
-          <div className="restaurant-branding">
-            <div className="restaurant-logo-circle">
-              <div className="logo-pattern"></div>
-              <span className="logo-text">النخيل</span>
-            </div>
-            <div className="restaurant-names">
-              <h1 className="arabic-name">مطعم النخيل الذهبي</h1>
-              <p className="english-name">GOLDEN PALM RESTAURANT</p>
-            </div>
-          </div>
+      {/* عنوان المطعم المحسن والبسيط */}
+      <div className="restaurant-title-improved" dir="rtl">
+        <div className="title-container">
+          <h1 className="restaurant-name">مطعم النخيل الذهبي</h1>
+          <p className="restaurant-tagline">نكهات شرقية أصيلة</p>
         </div>
       </div>
 
