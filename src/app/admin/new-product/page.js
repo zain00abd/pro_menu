@@ -295,6 +295,32 @@ export default function NewProductPage() {
                 style={{flex: 1}}
                 value={category} 
                 onChange={e=>setCategory(e.target.value)}
+                onFocus={(e) => {
+                  // عند فتح القائمة، تمرير القسم المحدد إلى الوسط
+                  if (category) {
+                    const selectedIndex = Array.from(e.target.options).findIndex(option => option.value === category);
+                    if (selectedIndex > -1) {
+                      const optionHeight = 40; // ارتفاع كل خيار تقريباً
+                      const visibleOptions = 5; // عدد الخيارات المرئية
+                      const scrollTop = Math.max(0, (selectedIndex - Math.floor(visibleOptions / 2)) * optionHeight);
+                      setTimeout(() => {
+                        e.target.scrollTop = scrollTop;
+                      }, 10);
+                    }
+                  }
+                }}
+                ref={(select) => {
+                  if (select && category) {
+                    // تمرير القسم المحدد إلى الوسط عند التحديث
+                    const selectedIndex = Array.from(select.options).findIndex(option => option.value === category);
+                    if (selectedIndex > -1) {
+                      const optionHeight = 40; // ارتفاع كل خيار تقريباً
+                      const visibleOptions = 5; // عدد الخيارات المرئية
+                      const scrollTop = Math.max(0, (selectedIndex - Math.floor(visibleOptions / 2)) * optionHeight);
+                      select.scrollTop = scrollTop;
+                    }
+                  }
+                }}
               >
                 <option value="">بدون قسم</option>
                 {categories.map((cat, idx) => (

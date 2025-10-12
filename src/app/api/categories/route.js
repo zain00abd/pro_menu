@@ -9,11 +9,38 @@ import { ObjectId } from 'mongodb'
 export async function GET(request) {
   try {
     const col = await getCollection('categories')
-    const categories = await col.find({}).sort({ order: 1, name: 1 }).toArray()
     
-    console.log('Categories with products:', categories)
+    // تحسين الاستعلام لاسترجاع البيانات الأساسية فقط
+    const categories = await col.find({}, {
+      projection: {
+        _id: 1,
+        name: 1,
+        order: 1,
+        products: 1,
+        updatedAt: 1
+      }
+    }).sort({ order: 1, name: 1 }).toArray()
     
-    return NextResponse.json({ ok: true, categories })
+    // تحسين البيانات قبل الإرسال
+    const optimizedCategories = categories.map(category => ({
+      _id: category._id,
+      name: category.name,
+      order: category.order || 0,
+      products: (category.products || []).map(product => ({
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        description: product.description
+      })),
+      updatedAt: category.updatedAt
+    }))
+    
+    return NextResponse.json({ 
+      ok: true, 
+      categories: optimizedCategories,
+      timestamp: Date.now() // إضافة timestamp للتخزين المؤقت
+    })
   } catch (err) {
     console.error('Get categories error', err)
     return NextResponse.json({ ok: false, error: String(err?.message || err) }, { status: 500 })

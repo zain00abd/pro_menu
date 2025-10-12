@@ -10,6 +10,58 @@
   overflow: hidden;
 }
 
+/* زر التحديث */
+.refresh-btn {
+  background: linear-gradient(135deg, #d4af37 0%, #c5a028 100%);
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+}
+
+.refresh-btn:hover {
+  background: linear-gradient(135deg, #c5a028 0%, #b8941f 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(212, 175, 55, 0.4);
+}
+
+.refresh-btn:active {
+  transform: translateY(0);
+}
+
+/* إشعار التحديث */
+.update-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+  z-index: 1000;
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 /* الزخارف الهندسية في الخلفية */
 .restaurant-title-improved::before {
   content: '';
@@ -1358,3 +1410,165 @@
       .bottom-bar button { padding: 6px 10px; }
       .bottom-spacer { height: 170px; }
     }
+
+/* Skeleton Loading Animation */
+.loading-skeleton {
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.skeleton-btn {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 8px;
+  height: 40px;
+  margin: 5px;
+  min-width: 80px;
+}
+
+.skeleton-card {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.skeleton-img {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 8px;
+  height: 138px;
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+.skeleton-text {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 4px;
+  height: 16px;
+  margin-bottom: 8px;
+}
+
+.skeleton-title {
+  width: 70%;
+  height: 20px;
+}
+
+.skeleton-desc {
+  width: 90%;
+  height: 14px;
+}
+
+.skeleton-price {
+  width: 40%;
+  height: 18px;
+}
+
+.skeleton-btn {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 6px;
+  height: 32px;
+  width: 60px;
+  margin-top: 10px;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* تحسينات إضافية للـ skeleton */
+.skeleton-card .menu-info {
+  padding: 0;
+}
+
+.skeleton-card .meta-row {
+  margin: 10px 0;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 768px) {
+  .skeleton-img {
+    height: 120px;
+  }
+  
+  .skeleton-title {
+    height: 18px;
+  }
+  
+  .skeleton-desc {
+    height: 12px;
+  }
+  
+  .skeleton-price {
+    height: 16px;
+  }
+  
+  .skeleton-btn {
+    height: 28px;
+    width: 50px;
+  }
+}
+
+@media (max-width: 480px) {
+  .skeleton-img {
+    height: 100px;
+  }
+  
+  .skeleton-card {
+    padding: 12px;
+  }
+  
+  .skeleton-title {
+    height: 16px;
+  }
+  
+  .skeleton-desc {
+    height: 10px;
+  }
+  
+  .skeleton-price {
+    height: 14px;
+  }
+  
+  .skeleton-btn {
+    height: 26px;
+    width: 45px;
+  }
+  
+  /* تحسينات للشاشات الصغيرة */
+  .refresh-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  
+  .update-notification {
+    top: 10px;
+    right: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}

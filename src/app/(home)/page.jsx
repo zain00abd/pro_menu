@@ -14,38 +14,104 @@ export default function Menu() {
   const [deliveryType, setDeliveryType] = useState(''); // 'delivery' or 'pickup'
   const [address, setAddress] = useState('');
   const [customerName, setCustomerName] = useState('');
+  const [isScrolling, setIsScrolling] = useState(false);
+  const [lastUpdateTime, setLastUpdateTime] = useState(0);
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+
+  // دالة لمسح cache وإعادة تحميل البيانات
+  const clearCacheAndRefresh = async () => {
+    localStorage.removeItem('menu-data');
+    await refreshData(true);
+  };
+
+  // دالة لتحديث البيانات من cache أو الخادم
+  const refreshData = async (forceRefresh = false) => {
+    try {
+      const res = await fetch('/api/categories', { 
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      if (!res.ok) throw new Error('فشل جلب البيانات');
+      const data = await res.json();
+      if (!Array.isArray(data.categories)) throw new Error('صيغة بيانات غير صحيحة');
+      
+      // تحويل البيانات من النظام الجديد إلى النظام القديم للتوافق
+      const allItems = [];
+      // ترتيب الأقسام حسب order مع ضمان الترتيب الصحيح
+      const sortedCategories = data.categories.sort((a, b) => {
+        const orderA = a.order !== undefined ? a.order : 999;
+        const orderB = b.order !== undefined ? b.order : 999;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name, 'ar');
+      });
+      
+      sortedCategories.forEach(category => {
+        if (category.products && Array.isArray(category.products)) {
+          category.products.forEach(product => {
+            allItems.push({
+              id: product.id || `product-${Math.random().toString(36).substr(2, 9)}`,
+              name: product.name || '',
+              desc: product.description || '',
+              price: Number(product.price) || 0,
+              img: product.image || '',
+              category: category.name || 'بدون قسم'
+            });
+          });
+        }
+      });
+      
+      // حفظ البيانات في cache مع timestamp محدث
+      const newTimestamp = data.timestamp || Date.now();
+      localStorage.setItem('menu-data', JSON.stringify({
+        items: allItems,
+        timestamp: newTimestamp,
+        categoriesOrder: sortedCategories.map(cat => ({ name: cat.name, order: cat.order }))
+      }));
+      
+      setItems(allItems);
+      setQuantities(Array(allItems.length).fill(0));
+      setLastUpdateTime(newTimestamp);
+      
+      // إظهار إشعار التحديث فقط عند التحديث اليدوي
+      if (forceRefresh) {
+        setShowUpdateNotification(true);
+        setTimeout(() => setShowUpdateNotification(false), 3000);
+      }
+      
+      return true;
+    } catch (e) {
+      console.error('خطأ في تحديث البيانات:', e);
+      return false;
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
-        const res = await fetch('/api/categories', { cache: 'no-store' });
-        if (!res.ok) throw new Error('فشل جلب البيانات');
-        const data = await res.json();
-        if (!Array.isArray(data.categories)) throw new Error('صيغة بيانات غير صحيحة');
-        if (!isMounted) return;
+        // استخدام cache محسن مع timestamp
+        const cacheKey = 'menu-data';
+        const cachedData = localStorage.getItem(cacheKey);
+        const now = Date.now();
         
-        // تحويل البيانات من النظام الجديد إلى النظام القديم للتوافق
-        const allItems = [];
-        // ترتيب الأقسام حسب order
-        const sortedCategories = data.categories.sort((a, b) => (a.order || 0) - (b.order || 0));
-        sortedCategories.forEach(category => {
-          if (category.products && Array.isArray(category.products)) {
-            category.products.forEach(product => {
-              allItems.push({
-                id: product.id || `product-${Math.random().toString(36).substr(2, 9)}`,
-                name: product.name || '',
-                desc: product.description || '',
-                price: Number(product.price) || 0,
-                img: product.image || '',
-                category: category.name || 'بدون قسم'
-              });
-            });
+        // إذا كانت البيانات محفوظة منذ أقل من 10 دقائق، استخدمها
+        if (cachedData) {
+          const parsedCache = JSON.parse(cachedData);
+          if (now - parsedCache.timestamp < 10 * 60 * 1000) { // 10 دقائق
+            if (isMounted) {
+              setItems(parsedCache.items);
+              setQuantities(Array(parsedCache.items.length).fill(0));
+              setLastUpdateTime(parsedCache.timestamp);
+              setLoading(false);
+              return;
+            }
           }
-        });
+        }
         
-        setItems(allItems);
-        setQuantities(Array(allItems.length).fill(0));
+        // جلب البيانات من الخادم
+        await refreshData(false);
       } catch (e) {
         if (isMounted) setError(e?.message || 'خطأ غير متوقع');
       } finally {
@@ -211,18 +277,35 @@ export default function Menu() {
 
     const observerOptions = {
       root: null,
-      rootMargin: '-100px 0px -60% 0px',
-      threshold: 0
+      rootMargin: '-150px 0px -50% 0px',
+      threshold: [0, 0.1, 0.5, 1]
     };
 
     const observerCallback = (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const categoryName = entry.target.id.replace('category-', '');
-          setActiveCategory(categoryName);
-          scrollButtonToCenter(categoryName);
-        }
-      });
+      // تجاهل التحديثات أثناء التمرير المبرمج
+      if (isScrolling) return;
+      
+      // ترتيب الأقسام المرئية حسب نسبة الرؤية
+      const visibleCategories = entries
+        .filter(entry => entry.isIntersecting)
+        .map(entry => ({
+          name: entry.target.id.replace('category-', ''),
+          ratio: entry.intersectionRatio,
+          top: entry.boundingClientRect.top
+        }))
+        .sort((a, b) => {
+          // أولاً حسب نسبة الرؤية، ثم حسب المسافة من الأعلى
+          if (Math.abs(a.ratio - b.ratio) > 0.1) {
+            return b.ratio - a.ratio;
+          }
+          return Math.abs(a.top) - Math.abs(b.top);
+        });
+
+      if (visibleCategories.length > 0) {
+        const mostVisibleCategory = visibleCategories[0].name;
+        setActiveCategory(mostVisibleCategory);
+        scrollButtonToCenter(mostVisibleCategory);
+      }
     };
 
     const observer = new IntersectionObserver(observerCallback, observerOptions);
@@ -241,12 +324,13 @@ export default function Menu() {
 
   // التنقل إلى قسم معين
   const scrollToCategory = (categoryName) => {
+    setIsScrolling(true);
     setActiveCategory(categoryName);
     scrollButtonToCenter(categoryName);
     
     const element = document.getElementById(`category-${categoryName}`);
     if (element) {
-      const offset = 120; // مسافة من الأعلى
+      const offset = 150; // مسافة من الأعلى (مطابقة لـ rootMargin)
       const elementPosition = element.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - offset;
       
@@ -254,6 +338,11 @@ export default function Menu() {
         top: offsetPosition,
         behavior: 'smooth'
       });
+      
+      // إعادة تعيين حالة التمرير بعد انتهاء الحركة
+      setTimeout(() => {
+        setIsScrolling(false);
+      }, 1000);
     }
   };
 
@@ -267,9 +356,40 @@ export default function Menu() {
         </div>
       </div>
 
+      {/* إشعار التحديث */}
+      {showUpdateNotification && (
+        <div className="update-notification">
+          ✅ تم تحديث القائمة بنجاح!
+        </div>
+      )}
+
       <div className="container py-4" dir="rtl">
 
-        {loading && <p className="text-center">جارٍ التحميل...</p>}
+        {loading && (
+          <div className="loading-skeleton">
+            {/* شريط الأقسام المحاكي */}
+            <div className="categories-nav-bar">
+              <div className="categories-nav-content">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="category-nav-btn skeleton-btn"></div>
+                ))}
+              </div>
+            </div>
+            
+            {/* بطاقات المنتجات المحاكية */}
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="menu-card skeleton-card">
+                <div className="menu-img skeleton-img"></div>
+                <div className="menu-info">
+                  <div className="skeleton-text skeleton-title"></div>
+                  <div className="skeleton-text skeleton-desc"></div>
+                  <div className="skeleton-text skeleton-price"></div>
+                  <div className="skeleton-btn"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {!!error && <p className="text-center text-danger">{error}</p>}
 
         {/* شريط الأقسام الأفقي الثابت */}
@@ -307,7 +427,15 @@ export default function Menu() {
                     <span className="total-badge" style={{ display: 'inline-block' }}>ل.س {formatNumber(quantities[originalIndex] * item.price)}</span>
                   )}
                   <div className="menu-img">
-                    <img src={item.img || 'https://via.placeholder.com/208x138?text=%20'} alt={item.name} />
+                    <img 
+                      src={item.img || 'https://via.placeholder.com/208x138?text=%20'} 
+                      alt={item.name}
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/208x138?text=%20';
+                      }}
+                    />
                   </div>
                   <div className="menu-info">
                     <h6 className="fw-bold mb-1 m-0">{item.name}</h6>

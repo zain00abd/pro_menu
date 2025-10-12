@@ -77,6 +77,58 @@ select.form-control {
   padding-left: 40px;
 }
 
+/* تحسين شريط التمرير للأقسام */
+select.form-control option {
+  padding: 8px 12px;
+  background-color: #ffffff;
+  color: #3a2a20;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+select.form-control option:hover {
+  background-color: #f8f9fa;
+}
+
+select.form-control option:checked {
+  background-color: #d4af37;
+  color: #ffffff;
+}
+
+/* إضافة شريط تمرير مخصص للقائمة المنسدلة */
+select.form-control {
+  scrollbar-width: thin;
+  scrollbar-color: #d4af37 #f0f0f0;
+}
+
+select.form-control::-webkit-scrollbar {
+  width: 8px;
+}
+
+select.form-control::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+select.form-control::-webkit-scrollbar-thumb {
+  background: #d4af37;
+  border-radius: 4px;
+}
+
+select.form-control::-webkit-scrollbar-thumb:hover {
+  background: #c5a028;
+}
+
+/* تحسين عرض القائمة المنسدلة */
+select.form-control {
+  max-height: 200px; /* ارتفاع أقصى للقائمة المنسدلة */
+  overflow-y: auto;
+}
+
+/* تحسين مظهر القائمة المنسدلة عند الفتح */
+select.form-control:focus {
+  scroll-behavior: smooth;
+}
+
 .btn-primary-custom {
   background: linear-gradient(135deg, #d4af37 0%, #c5a028 100%);
   border: none;
@@ -221,6 +273,32 @@ select.form-control {
     font-size: 14px;
   }
 
+  /* تحسين شريط التمرير للشاشات المتوسطة */
+  select.form-control::-webkit-scrollbar {
+    width: 10px; /* تكبير قليل للشاشات المتوسطة */
+  }
+
+  select.form-control::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 5px;
+  }
+
+  select.form-control::-webkit-scrollbar-thumb {
+    background: #d4af37;
+    border-radius: 5px;
+    border: 1px solid #f0f0f0;
+  }
+
+  select.form-control::-webkit-scrollbar-thumb:hover {
+    background: #c5a028;
+  }
+
+  /* تحسين خيارات القائمة للشاشات المتوسطة */
+  select.form-control option {
+    padding: 10px 14px;
+    font-size: 15px;
+  }
+
   .btn-primary-custom {
     padding: 12px 24px;
     font-size: 15px;
@@ -342,6 +420,33 @@ select.form-control {
   select.form-control {
     background-position: left 12px center;
     padding-left: 36px;
+  }
+
+  /* تكبير شريط التمرير في الشاشات الصغيرة */
+  select.form-control::-webkit-scrollbar {
+    width: 12px; /* تكبير عرض شريط التمرير */
+  }
+
+  select.form-control::-webkit-scrollbar-track {
+    background: #f0f0f0;
+    border-radius: 6px; /* تكبير نصف القطر */
+  }
+
+  select.form-control::-webkit-scrollbar-thumb {
+    background: #d4af37;
+    border-radius: 6px; /* تكبير نصف القطر */
+    border: 2px solid #f0f0f0; /* إضافة حدود للوضوح */
+  }
+
+  select.form-control::-webkit-scrollbar-thumb:hover {
+    background: #c5a028;
+    border-color: #e0e0e0;
+  }
+
+  /* تحسين خيارات القائمة في الشاشات الصغيرة */
+  select.form-control option {
+    padding: 12px 16px; /* تكبير padding للخيارات */
+    font-size: 16px; /* تكبير الخط قليلاً */
   }
 
   .input-group-custom {
