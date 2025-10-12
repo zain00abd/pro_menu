@@ -10,36 +10,33 @@ export async function GET(request) {
   try {
     const col = await getCollection('categories')
     
-    // تحسين الاستعلام لاسترجاع البيانات الأساسية فقط
+    // جلب البيانات بشكل محسّن وسريع
     const categories = await col.find({}, {
       projection: {
         _id: 1,
         name: 1,
         order: 1,
-        products: 1,
-        updatedAt: 1
+        products: 1
       }
     }).sort({ order: 1, name: 1 }).toArray()
     
-    // تحسين البيانات قبل الإرسال
-    const optimizedCategories = categories.map(category => ({
-      _id: category._id,
-      name: category.name,
-      order: category.order || 0,
-      products: (category.products || []).map(product => ({
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        image: product.image,
-        description: product.description
-      })),
-      updatedAt: category.updatedAt
+    // معالجة سريعة للبيانات فقط لضمان وجود الحقول الأساسية
+    const processedCategories = categories.map(cat => ({
+      _id: cat._id,
+      name: cat.name,
+      order: cat.order ?? 0,
+      products: cat.products || []
     }))
     
     return NextResponse.json({ 
       ok: true, 
-      categories: optimizedCategories,
-      timestamp: Date.now() // إضافة timestamp للتخزين المؤقت
+      categories: processedCategories
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     })
   } catch (err) {
     console.error('Get categories error', err)
@@ -96,33 +93,31 @@ export async function PUT(request) {
     
     switch (action) {
       case 'reorderCategories':
-        console.log('Reordering categories:', body.categories)
         if (!body.categories || !Array.isArray(body.categories)) {
           return NextResponse.json({ ok: false, error: 'categories array is required' }, { status: 400 })
         }
         
-        // تحديث ترتيب جميع الأقسام
-        const updatePromises = body.categories.map((cat, index) => {
-          try {
-            console.log(`Updating category ${cat._id} to order ${index}`)
-            return col.updateOne(
-              { _id: new ObjectId(cat._id) },
-              { 
-                $set: { 
-                  order: index,
-                  updatedAt: new Date()
-                }
-              }
-            )
-          } catch (error) {
-            console.error(`Error updating category ${cat._id}:`, error)
-            return Promise.resolve({ matchedCount: 0, modifiedCount: 0 })
+        // تحديث ترتيب جميع الأقسام بشكل متوازي للسرعة
+        const updatePromises = body.categories.map((cat, index) => 
+          col.updateOne(
+            { _id: new ObjectId(cat._id) },
+            { $set: { order: index, updatedAt: new Date() } }
+          ).catch(err => {
+            console.error(`Error updating category ${cat._id}:`, err)
+            return { matchedCount: 0, modifiedCount: 0 }
+          })
+        )
+        
+        await Promise.all(updatePromises)
+        
+        return NextResponse.json({ 
+          ok: true, 
+          message: 'Categories reordered successfully' 
+        }, {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
           }
         })
-        
-        const results = await Promise.all(updatePromises)
-        console.log('Update results:', results)
-        return NextResponse.json({ ok: true, message: 'Categories reordered successfully' })
         
       case 'addProduct':
         if (!categoryId) {

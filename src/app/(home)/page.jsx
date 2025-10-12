@@ -15,103 +15,55 @@ export default function Menu() {
   const [address, setAddress] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [isScrolling, setIsScrolling] = useState(false);
-  const [lastUpdateTime, setLastUpdateTime] = useState(0);
-  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
 
-  // دالة لمسح cache وإعادة تحميل البيانات
-  const clearCacheAndRefresh = async () => {
-    localStorage.removeItem('menu-data');
-    await refreshData(true);
-  };
-
-  // دالة لتحديث البيانات من cache أو الخادم
-  const refreshData = async (forceRefresh = false) => {
-    try {
-      const res = await fetch('/api/categories', { 
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      if (!res.ok) throw new Error('فشل جلب البيانات');
-      const data = await res.json();
-      if (!Array.isArray(data.categories)) throw new Error('صيغة بيانات غير صحيحة');
-      
-      // تحويل البيانات من النظام الجديد إلى النظام القديم للتوافق
-      const allItems = [];
-      // ترتيب الأقسام حسب order مع ضمان الترتيب الصحيح
-      const sortedCategories = data.categories.sort((a, b) => {
-        const orderA = a.order !== undefined ? a.order : 999;
-        const orderB = b.order !== undefined ? b.order : 999;
-        if (orderA !== orderB) return orderA - orderB;
-        return a.name.localeCompare(b.name, 'ar');
-      });
-      
-      sortedCategories.forEach(category => {
-        if (category.products && Array.isArray(category.products)) {
-          category.products.forEach(product => {
-            allItems.push({
-              id: product.id || `product-${Math.random().toString(36).substr(2, 9)}`,
-              name: product.name || '',
-              desc: product.description || '',
-              price: Number(product.price) || 0,
-              img: product.image || '',
-              category: category.name || 'بدون قسم'
-            });
-          });
-        }
-      });
-      
-      // حفظ البيانات في cache مع timestamp محدث
-      const newTimestamp = data.timestamp || Date.now();
-      localStorage.setItem('menu-data', JSON.stringify({
-        items: allItems,
-        timestamp: newTimestamp,
-        categoriesOrder: sortedCategories.map(cat => ({ name: cat.name, order: cat.order }))
-      }));
-      
-      setItems(allItems);
-      setQuantities(Array(allItems.length).fill(0));
-      setLastUpdateTime(newTimestamp);
-      
-      // إظهار إشعار التحديث فقط عند التحديث اليدوي
-      if (forceRefresh) {
-        setShowUpdateNotification(true);
-        setTimeout(() => setShowUpdateNotification(false), 3000);
-      }
-      
-      return true;
-    } catch (e) {
-      console.error('خطأ في تحديث البيانات:', e);
-      return false;
-    }
-  };
-
+  // جلب البيانات مباشرة من API بدون أي تخزين مؤقت
   useEffect(() => {
     let isMounted = true;
     (async () => {
       try {
-        // استخدام cache محسن مع timestamp
-        const cacheKey = 'menu-data';
-        const cachedData = localStorage.getItem(cacheKey);
-        const now = Date.now();
-        
-        // إذا كانت البيانات محفوظة منذ أقل من 10 دقائق، استخدمها
-        if (cachedData) {
-          const parsedCache = JSON.parse(cachedData);
-          if (now - parsedCache.timestamp < 10 * 60 * 1000) { // 10 دقائق
-            if (isMounted) {
-              setItems(parsedCache.items);
-              setQuantities(Array(parsedCache.items.length).fill(0));
-              setLastUpdateTime(parsedCache.timestamp);
-              setLoading(false);
-              return;
-            }
+        // جلب البيانات مباشرة من الخادم بدون cache
+        const res = await fetch('/api/categories', { 
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           }
-        }
+        });
         
-        // جلب البيانات من الخادم
-        await refreshData(false);
+        if (!res.ok) throw new Error('فشل جلب البيانات');
+        const data = await res.json();
+        if (!Array.isArray(data.categories)) throw new Error('صيغة بيانات غير صحيحة');
+        
+        // تحويل البيانات من النظام الجديد إلى النظام القديم للتوافق
+        const allItems = [];
+        // ترتيب الأقسام حسب order مع ضمان الترتيب الصحيح
+        const sortedCategories = data.categories.sort((a, b) => {
+          const orderA = a.order !== undefined ? a.order : 999;
+          const orderB = b.order !== undefined ? b.order : 999;
+          if (orderA !== orderB) return orderA - orderB;
+          return a.name.localeCompare(b.name, 'ar');
+        });
+        
+        sortedCategories.forEach(category => {
+          if (category.products && Array.isArray(category.products)) {
+            category.products.forEach(product => {
+              allItems.push({
+                id: product.id || `product-${Math.random().toString(36).substr(2, 9)}`,
+                name: product.name || '',
+                desc: product.description || '',
+                price: Number(product.price) || 0,
+                img: product.image || '',
+                category: category.name || 'بدون قسم'
+              });
+            });
+          }
+        });
+        
+        if (isMounted) {
+          setItems(allItems);
+          setQuantities(Array(allItems.length).fill(0));
+        }
       } catch (e) {
         if (isMounted) setError(e?.message || 'خطأ غير متوقع');
       } finally {
@@ -356,12 +308,6 @@ export default function Menu() {
         </div>
       </div>
 
-      {/* إشعار التحديث */}
-      {showUpdateNotification && (
-        <div className="update-notification">
-          ✅ تم تحديث القائمة بنجاح!
-        </div>
-      )}
 
       <div className="container py-4" dir="rtl">
 

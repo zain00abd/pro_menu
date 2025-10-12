@@ -6,14 +6,15 @@ const CONNECTION_TIMEOUT = 5 * 60 * 1000 // 5 دقائق
 
 const options = {
   maxPoolSize: 10,
-  minPoolSize: 1,
-  serverSelectionTimeoutMS: 30000,
-  socketTimeoutMS: 45000,
-  connectTimeoutMS: 30000,
+  minPoolSize: 2,
+  serverSelectionTimeoutMS: 5000, // تقليل من 30 ثانية إلى 5 ثوانٍ
+  socketTimeoutMS: 10000, // تقليل من 45 ثانية إلى 10 ثوانٍ
+  connectTimeoutMS: 5000, // تقليل من 30 ثانية إلى 5 ثوانٍ
   retryWrites: true,
   retryReads: true,
-  maxIdleTimeMS: 60000,
-  waitQueueTimeoutMS: 10000,
+  maxIdleTimeMS: 30000, // تقليل من 60 ثانية إلى 30 ثانية
+  waitQueueTimeoutMS: 3000, // تقليل من 10 ثوانٍ إلى 3 ثوانٍ
+  compressors: ['zlib'], // تفعيل الضغط لتسريع نقل البيانات
 }
 
 function ensureClient() {
@@ -70,7 +71,7 @@ function ensureClient() {
 }
 
 export async function getDb(databaseName = 'all-data') {
-  let retries = 3
+  let retries = 2 // تقليل المحاولات من 3 إلى 2
   let lastError = null
   
   while (retries > 0) {
@@ -88,9 +89,9 @@ export async function getDb(databaseName = 'all-data') {
         global._mongoClientPromise = null
       }
       
-      // انتظار قصير قبل المحاولة التالية
+      // انتظار أقصر قبل المحاولة التالية (300ms بدلاً من 1000ms)
       if (retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise(resolve => setTimeout(resolve, 300))
       }
     }
   }
