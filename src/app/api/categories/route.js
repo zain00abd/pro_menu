@@ -1,222 +1,271 @@
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
 import { NextResponse } from 'next/server'
 import { getCollection } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 
-// GET - جلب جميع الأقسام مع منتجاتها
-export async function GET(request) {
+// Headers لمنع التخزين المؤقت
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+  'Pragma': 'no-cache',
+  'Expires': '0'
+}
+
+// ============================================
+// GET - جلب جميع الأقسام
+// ============================================
+export async function GET() {
   try {
     const col = await getCollection('categories')
     
-    // جلب البيانات بشكل محسّن وسريع
-    const categories = await col.find({}, {
-      projection: {
-        _id: 1,
-        name: 1,
-        order: 1,
-        products: 1
-      }
-    }).sort({ order: 1, name: 1 }).toArray()
+    const categories = await col
+      .find({})
+      .sort({ order: 1, name: 1 })
+      .toArray()
     
-    // معالجة سريعة للبيانات فقط لضمان وجود الحقول الأساسية
-    const processedCategories = categories.map(cat => ({
-      _id: cat._id,
-      name: cat.name,
-      order: cat.order ?? 0,
-      products: cat.products || []
-    }))
-    
-    return NextResponse.json({ 
-      ok: true, 
-      categories: processedCategories
-    }, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    })
-  } catch (err) {
-    console.error('Get categories error', err)
-    return NextResponse.json({ ok: false, error: String(err?.message || err) }, { status: 500 })
+    return NextResponse.json(
+      { ok: true, categories },
+      { headers: NO_CACHE_HEADERS }
+    )
+  } catch (error) {
+    console.error('خطأ في جلب الأقسام:', error)
+    return NextResponse.json(
+      { ok: false, error: error.message },
+      { status: 500 }
+    )
   }
 }
 
+// ============================================
 // POST - إنشاء قسم جديد
+// ============================================
 export async function POST(request) {
   try {
-    const body = await request.json()
-    const { name } = body || {}
+    const { name, order = 0 } = await request.json()
 
+    // التحقق من الاسم
     if (!name || !name.trim()) {
-      return NextResponse.json({ ok: false, error: 'name is required' }, { status: 400 })
+      return NextResponse.json(
+        { ok: false, error: 'الاسم مطلوب' },
+        { status: 400 }
+      )
     }
 
     const col = await getCollection('categories')
     
-    // التحقق من عدم وجود قسم بنفس الاسم
-    const existing = await col.findOne({ name: String(name).trim() })
-    if (existing) {
-      return NextResponse.json({ ok: false, error: 'Category already exists' }, { status: 400 })
+    // التحقق من عدم تكرار الاسم
+    const exists = await col.findOne({ name: name.trim() })
+    if (exists) {
+      return NextResponse.json(
+        { ok: false, error: 'القسم موجود مسبقاً' },
+        { status: 400 }
+      )
     }
 
-    const doc = {
-      name: String(name).trim(),
-      products: [], // مصفوفة المنتجات
-      order: body.order || 0,
+    // إنشاء القسم الجديد
+    const newCategory = {
+      name: name.trim(),
+      order,
+      products: [],
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: new Date()
     }
 
-    const result = await col.insertOne(doc)
+    const result = await col.insertOne(newCategory)
 
-    return NextResponse.json({ ok: true, id: result.insertedId, category: doc })
-  } catch (err) {
-    console.error('Create category error', err)
-    return NextResponse.json({ ok: false, error: String(err?.message || err) }, { status: 500 })
+    return NextResponse.json({
+      ok: true,
+      id: result.insertedId,
+      category: newCategory
+    })
+  } catch (error) {
+    console.error('خطأ في إنشاء القسم:', error)
+    return NextResponse.json(
+      { ok: false, error: error.message },
+      { status: 500 }
+    )
   }
 }
 
-// PUT - تحديث قسم (إضافة/تعديل/حذف منتج)
+// ============================================
+// PUT - تحديث (إعادة ترتيب، إضافة، تعديل، حذف)
+// ============================================
 export async function PUT(request) {
   try {
     const body = await request.json()
-    const { categoryId, action, product } = body || {}
+    const { action, categoryId, product, categories } = body
 
     if (!action) {
-      return NextResponse.json({ ok: false, error: 'action is required' }, { status: 400 })
+      return NextResponse.json(
+        { ok: false, error: 'action مطلوب' },
+        { status: 400 }
+      )
     }
 
     const col = await getCollection('categories')
-    
-    switch (action) {
-      case 'reorderCategories':
-        if (!body.categories || !Array.isArray(body.categories)) {
-          return NextResponse.json({ ok: false, error: 'categories array is required' }, { status: 400 })
-        }
-        
-        // تحديث ترتيب جميع الأقسام بشكل متوازي للسرعة
-        const updatePromises = body.categories.map((cat, index) => 
-          col.updateOne(
-            { _id: new ObjectId(cat._id) },
-            { $set: { order: index, updatedAt: new Date() } }
-          ).catch(err => {
-            console.error(`Error updating category ${cat._id}:`, err)
-            return { matchedCount: 0, modifiedCount: 0 }
-          })
+
+    // -----------------------------------
+    // إعادة ترتيب الأقسام
+    // -----------------------------------
+    if (action === 'reorderCategories') {
+      if (!categories || !Array.isArray(categories)) {
+        return NextResponse.json(
+          { ok: false, error: 'categories مطلوب' },
+          { status: 400 }
         )
-        
-        await Promise.all(updatePromises)
-        
-        return NextResponse.json({ 
-          ok: true, 
-          message: 'Categories reordered successfully' 
-        }, {
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-          }
-        })
-        
-      case 'addProduct':
-        if (!categoryId) {
-          return NextResponse.json({ ok: false, error: 'categoryId is required for addProduct' }, { status: 400 })
-        }
-        if (!product || !product.name || !product.price) {
-          return NextResponse.json({ ok: false, error: 'Product name and price are required' }, { status: 400 })
-        }
-        
-        const newProduct = {
-          id: `product-${Math.random().toString(36).substr(2, 9)}`, // معرف مؤقت آمن
-          name: String(product.name).trim(),
-          price: Number(product.price),
-          image: product.image ? String(product.image).trim() : '',
-          description: product.description ? String(product.description).trim() : '',
-          createdAt: new Date(),
-        }
-        
-        await col.updateOne(
-          { _id: new ObjectId(categoryId) },
-          { 
-            $push: { products: newProduct },
-            $set: { updatedAt: new Date() }
-          }
+      }
+
+      // تحديث ترتيب كل قسم
+      const updates = categories.map((cat, index) =>
+        col.updateOne(
+          { _id: new ObjectId(cat._id) },
+          { $set: { order: index, updatedAt: new Date() } }
         )
-        
-        return NextResponse.json({ ok: true, product: newProduct })
-        
-      case 'updateProduct':
-        if (!categoryId) {
-          return NextResponse.json({ ok: false, error: 'categoryId is required for updateProduct' }, { status: 400 })
-        }
-        if (!product || !product.id) {
-          return NextResponse.json({ ok: false, error: 'Product id is required' }, { status: 400 })
-        }
-        
-        await col.updateOne(
-          { _id: new ObjectId(categoryId), 'products.id': product.id },
-          { 
-            $set: { 
-              'products.$.name': String(product.name).trim(),
-              'products.$.price': Number(product.price),
-              'products.$.image': product.image ? String(product.image).trim() : '',
-              'products.$.description': product.description ? String(product.description).trim() : '',
-              'products.$.updatedAt': new Date(),
-              updatedAt: new Date()
-            }
-          }
-        )
-        
-        return NextResponse.json({ ok: true })
-        
-      case 'deleteProduct':
-        if (!categoryId) {
-          return NextResponse.json({ ok: false, error: 'categoryId is required for deleteProduct' }, { status: 400 })
-        }
-        if (!product || !product.id) {
-          return NextResponse.json({ ok: false, error: 'Product id is required' }, { status: 400 })
-        }
-        
-        await col.updateOne(
-          { _id: new ObjectId(categoryId) },
-          { 
-            $pull: { products: { id: product.id } },
-            $set: { updatedAt: new Date() }
-          }
-        )
-        
-        return NextResponse.json({ ok: true })
-        
-      default:
-        return NextResponse.json({ ok: false, error: 'Invalid action' }, { status: 400 })
+      )
+
+      await Promise.all(updates)
+
+      return NextResponse.json(
+        { ok: true, message: 'تم تحديث الترتيب بنجاح' },
+        { headers: NO_CACHE_HEADERS }
+      )
     }
-  } catch (err) {
-    console.error('Update category error', err)
-    return NextResponse.json({ ok: false, error: String(err?.message || err) }, { status: 500 })
+
+    // -----------------------------------
+    // إضافة منتج جديد
+    // -----------------------------------
+    if (action === 'addProduct') {
+      if (!categoryId) {
+        return NextResponse.json(
+          { ok: false, error: 'categoryId مطلوب' },
+          { status: 400 }
+        )
+      }
+
+      if (!product?.name || !product?.price) {
+        return NextResponse.json(
+          { ok: false, error: 'اسم وسعر المنتج مطلوبان' },
+          { status: 400 }
+        )
+      }
+
+      const newProduct = {
+        id: `product-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: product.name.trim(),
+        price: Number(product.price),
+        image: product.image?.trim() || '',
+        description: product.description?.trim() || '',
+        createdAt: new Date()
+      }
+
+      await col.updateOne(
+        { _id: new ObjectId(categoryId) },
+        {
+          $push: { products: newProduct },
+          $set: { updatedAt: new Date() }
+        }
+      )
+
+      return NextResponse.json({ ok: true, product: newProduct })
+    }
+
+    // -----------------------------------
+    // تحديث منتج موجود
+    // -----------------------------------
+    if (action === 'updateProduct') {
+      if (!categoryId || !product?.id) {
+        return NextResponse.json(
+          { ok: false, error: 'categoryId و product.id مطلوبان' },
+          { status: 400 }
+        )
+      }
+
+      await col.updateOne(
+        { _id: new ObjectId(categoryId), 'products.id': product.id },
+        {
+          $set: {
+            'products.$.name': product.name.trim(),
+            'products.$.price': Number(product.price),
+            'products.$.image': product.image?.trim() || '',
+            'products.$.description': product.description?.trim() || '',
+            'products.$.updatedAt': new Date(),
+            updatedAt: new Date()
+          }
+        }
+      )
+
+      return NextResponse.json({ ok: true })
+    }
+
+    // -----------------------------------
+    // حذف منتج
+    // -----------------------------------
+    if (action === 'deleteProduct') {
+      if (!categoryId || !product?.id) {
+        return NextResponse.json(
+          { ok: false, error: 'categoryId و product.id مطلوبان' },
+          { status: 400 }
+        )
+      }
+
+      await col.updateOne(
+        { _id: new ObjectId(categoryId) },
+        {
+          $pull: { products: { id: product.id } },
+          $set: { updatedAt: new Date() }
+        }
+      )
+
+      return NextResponse.json({ ok: true })
+    }
+
+    // إذا كان action غير معروف
+    return NextResponse.json(
+      { ok: false, error: 'action غير معروف' },
+      { status: 400 }
+    )
+  } catch (error) {
+    console.error('خطأ في التحديث:', error)
+    return NextResponse.json(
+      { ok: false, error: error.message },
+      { status: 500 }
+    )
   }
 }
 
+// ============================================
 // DELETE - حذف قسم كامل
+// ============================================
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url)
     const categoryId = searchParams.get('id')
 
     if (!categoryId) {
-      return NextResponse.json({ ok: false, error: 'Category id is required' }, { status: 400 })
+      return NextResponse.json(
+        { ok: false, error: 'id مطلوب' },
+        { status: 400 }
+      )
     }
 
     const col = await getCollection('categories')
     const result = await col.deleteOne({ _id: new ObjectId(categoryId) })
 
     if (result.deletedCount === 0) {
-      return NextResponse.json({ ok: false, error: 'Category not found' }, { status: 404 })
+      return NextResponse.json(
+        { ok: false, error: 'القسم غير موجود' },
+        { status: 404 }
+      )
     }
 
     return NextResponse.json({ ok: true })
-  } catch (err) {
-    console.error('Delete category error', err)
-    return NextResponse.json({ ok: false, error: String(err?.message || err) }, { status: 500 })
+  } catch (error) {
+    console.error('خطأ في حذف القسم:', error)
+    return NextResponse.json(
+      { ok: false, error: error.message },
+      { status: 500 }
+    )
   }
 }

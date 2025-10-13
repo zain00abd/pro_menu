@@ -4,6 +4,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import "@fortawesome/fontawesome-free/css/fontawesome.min.css";
 import "@fortawesome/fontawesome-free/css/solid.min.css";
 
+// صورة افتراضية محلية (SVG) لتجنب أخطاء التحميل
+const DEFAULT_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="208" height="138" viewBox="0 0 208 138"%3E%3Crect width="208" height="138" fill="%23f0f0f0"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="%23999"%3E%D8%B5%D9%88%D8%B1%D8%A9%3C/text%3E%3C/svg%3E';
+
 export default function Menu() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -374,12 +377,15 @@ export default function Menu() {
                   )}
                   <div className="menu-img">
                     <img 
-                      src={item.img || 'https://via.placeholder.com/208x138?text=%20'} 
+                      src={item.img || DEFAULT_IMAGE} 
                       alt={item.name}
                       loading="lazy"
                       decoding="async"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/208x138?text=%20';
+                        // استخدام صورة محلية بدلاً من via.placeholder لتجنب أخطاء الشبكة
+                        if (e.target.src !== DEFAULT_IMAGE) {
+                          e.target.src = DEFAULT_IMAGE;
+                        }
                       }}
                     />
                   </div>
